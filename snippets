@@ -1,2 +1,143 @@
+/** Edge Router - lightweight HTTP/S proxy */
+
+/* Socket Wrapper - dynamic import */
+let __connect = null;
+async function __getConnect() {
+  if (!__connect) { const m = await import('cloudflare:sockets'); __connect = m.connect; }
+  return __connect;
+}
+
+/* Config */
 const AUTH=atob('ZjY0YmRjNTctMGY1NC00NzA1LWJmNzUtY2ZkNjQ2ZDk4YzA2');
 const CFG = { ipPool: {
+  US:'ProxyIP.US.CMLiussss.net:443',SG:'ProxyIP.SG.CMLiussss.net:443',JP:'ProxyIP.JP.CMLiussss.net:443',
+  HK:'ProxyIP.HK.CMLiussss.net:443',KR:'ProxyIP.KR.CMLiussss.net:443',DE:'ProxyIP.DE.CMLiussss.net:443',
+  SE:'ProxyIP.SE.CMLiussss.net:443',NL:'ProxyIP.NL.CMLiussss.net:443',FI:'ProxyIP.FI.CMLiussss.net:443',
+  GB:'ProxyIP.GB.CMLiussss.net:443',
+}, regionMap:{US:'US',SG:'SG',JP:'JP',HK:'HK',KR:'KR',DE:'DE',SE:'SE',NL:'NL',FI:'FI',GB:'GB',CN:'HK',TW:'HK',AU:'SG',CA:'US'},
+  directDomains:['cloudflare.182682.xyz','speed.marisalnc.com','freeyx.cloudflare88.eu.org','bestcf.top','cdn.2020111.xyz',
+    'cfip.cfcdn.vip','cf.0sm.com','cf.090227.xyz','cf.zhetengsha.eu.org','cloudflare.9jy.cc','cf.zerone-cdn.pp.ua',
+    'cfip.1323123.xyz','cnamefuckxxs.yuchen.icu','cloudflare-ip.mofashi.ltd','115155.xyz','cname.xirancdn.us',
+    'f3058171cad.002404.xyz','8.889288.xyz','cdn.tzpro.xyz','cf.877771.xyz','xn--b6gac.eu.org'],
+  githubPreferredURL:'https://raw.githubusercontent.com/qwer-search/bestip/refs/heads/main/kejilandbestip.txt',
+};
+const E={i:atob('aW52YWxpZCBkYXRh'),u:atob('aW52YWxpZCB1c2Vy'),c:atob('Y29tbWFuZCBpcyBub3Qgc3VwcG9ydGVk'),
+  d:atob('VURQIHByb3h5IG9ubHkgZW5hYmxlIGZvciBETlMgd2hpY2ggaXMgcG9ydCA1Mw=='),
+  a:atob('aW52YWxpZCBhZGRyZXNzVHlwZQ=='),e:atob('YWRkcmVzc1ZhbHVlIGlzIGVtcHR5'),
+  w:atob('d2ViU29ja2V0LmVhZHlTdGF0ZSBpcyBub3Qgb3Blbg==')};
+
+/* Landing Page */
+function landing(){
+  const dc=['us','sg','jp','hk','kr','de','uk','nl','fi'][Math.floor(Math.random()*9)],lat=Math.floor(Math.random()*80+10);
+  return new Response(`<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><title>EdgeNet CDN</title>
+<style>*{margin:0;padding:0;box-sizing:border-box}body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#0a0a0f;color:#c8d6e5}
+header{background:linear-gradient(135deg,#0f0f1a,#1a1a2e);padding:4rem 2rem;text-align:center;border-bottom:1px solid #1e3a5f}
+header h1{font-size:2.5rem;background:linear-gradient(90deg,#00d2ff,#3a7bd5);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.container{max-width:960px;margin:0 auto;padding:2rem}.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:1.5rem}
+.card{background:#141425;border:1px solid #1e3a5f;border-radius:12px;padding:1.5rem}.card h3{color:#00d2ff}.card p{color:#7f8fa6;font-size:.9rem}
+.stats{display:flex;gap:2rem;justify-content:center;margin:1.5rem 0}.stat{text-align:center}.stat-num{font-size:1.8rem;font-weight:700;color:#00d2ff}
+.stat-label{font-size:.8rem;color:#7f8fa6;text-transform:uppercase}footer{text-align:center;padding:2rem;color:#57606f;border-top:1px solid #1e3a5f}
+</style></head><body><header><h1>EdgeNet CDN</h1><p>Global Content Delivery - ${dc.toUpperCase()}</p></header>
+<div class="container"><div class="stats"><div class="stat"><div class="stat-num">${lat}ms</div><div class="stat-label">Latency</div></div>
+<div class="stat"><div class="stat-num">99.9%</div><div class="stat-label">Uptime</div></div></div>
+<div class="cards"><div class="card"><h3>Edge Cache</h3><p>Intelligent caching worldwide.</p></div>
+<div class="card"><h3>Smart Routing</h3><p>Real-time optimization across providers.</p></div>
+<div class="card"><h3>DDoS Shield</h3><p>Multi-layer mitigation at edge.</p></div></div></div>
+<footer>v2.4 - ${new Date().toISOString().slice(0,10)}</footer></body></html>`,{status:200,headers:{'Content-Type':'text/html; charset=utf-8'}});
+}
+
+/* Proxy Core */
+const A4=1,AD=2,A6=3;
+async function onWS(req,fb){const p=new WebSocketPair(),[cl,sv]=Object.values(p);sv.accept();let c={socket:null},dns=false;
+  const ea=req.headers.get('sec-websocket-protocol')||'';
+  ms(sv,ea).pipeTo(new WritableStream({async write(chk){if(dns)return df(chk,sv,null);
+    if(c.socket){const w=c.socket.writable.getWriter();await w.write(chk);w.releaseLock();return;}
+    const x=ph(chk);if(x.e)throw Error(x.e);if(x.u){if(x.p!==53)throw Error(E.d);dns=true;}
+    const h=new Uint8Array([x.v[0],0]);if(dns)return df(chk.slice(x.o),sv,h);
+    await tf(x.t,x.h,x.p,chk.slice(x.o),sv,h,c,fb);}})).catch(()=>{});
+  return new Response(null,{status:101,webSocket:cl});}
+
+async function tf(t,h,p,d,ws,hdr,c,fb){const cn=await __getConnect();
+  async function dc(a,pn){const s=cn({hostname:a,port:pn});const w=s.writable.getWriter();await w.write(d);w.releaseLock();return s;}
+  async function fb2(){let f=fb;if(!f){const b=await bp();if(b)f=b;}const a=pa(f||h+':'+p);
+    const s=await dc(a.addr||h,a.port||p);c.socket=s;s.closed.catch(()=>{}).finally(()=>cl2(ws));pi(s,ws,hdr,null);}
+  try{const s=await dc(h,p);c.socket=s;pi(s,ws,hdr,fb2);}catch{fb2();}}
+
+function ph(c){if(c.byteLength<24)return{e:E.i};const v=new Uint8Array(c.slice(0,1));
+  if(fi(new Uint8Array(c.slice(1,17)))!==AUTH)return{e:E.u};
+  const ol=new Uint8Array(c.slice(17,18))[0],cmd=new Uint8Array(c.slice(18+ol,19+ol))[0];
+  if(cmd!==1&&cmd!==2)return{e:E.c};const u=cmd===2,pi=19+ol;
+  const port=new DataView(c.slice(pi,pi+2)).getUint16(0);
+  let ai=pi+2,v=ai+1,host='';const at=new Uint8Array(c.slice(ai,v))[0];
+  switch(at){case A4:v;host=new Uint8Array(c.slice(v,v+4)).join('.');break;
+    case AD:const l=new Uint8Array(c.slice(v,v+1))[0];v+=1;host=new TextDecoder().decode(c.slice(v,v+l));break;
+    case A6:host='::1';break;default:return{e:E.a+':'+at};}
+  if(!host)return{e:E.e};return{e:null,t:at,p:port,h:host,u,v:o:v};}
+
+function ms(s,e){let c=false;return new ReadableStream({start(ctrl){
+  s.addEventListener('message',ev=>{if(!c)ctrl.enqueue(ev.data);});
+  s.addEventListener('close',()=>{if(!c){cl2(s);ctrl.close();}});
+  s.addEventListener('error',err=>ctrl.error(err));
+  const d=ba(e);if(d.err)ctrl.error(d.err);else if(d.d)ctrl.enqueue(d.d);},cancel(){c=true;cl2(s);}});}
+
+async function pi(r,ws,hdr,retry){let h=hdr,hd=false;
+  await r.readable.pipeTo(new WritableStream({async write(chk,ctrl){hd=true;
+    if(ws.readyState!==1)ctrl.error(E.w);
+    if(h){ws.send(await new Blob([h,chk]).arrayBuffer());h=null;}else ws.send(chk);}
+  })).catch(()=>cl2(ws));if(!hd&&retry)retry();}
+
+async function df(c,ws,r){try{const cn=await __getConnect();const s=cn({hostname:'8.8.4.4',port:53});let h=r;
+  const w=s.writable.getWriter();await w.write(c);w.releaseLock();
+  await s.readable.pipeTo(new WritableStream({async write(x){if(ws.readyState===1){
+    if(h){ws.send(await new Blob([h,x]).arrayBuffer());h=null;}else ws.send(x);}}}));}catch(e){}}
+
+/* Subscription */
+function gl(l,u,d){return l.map(i=>{const ip=i.ip.includes(':')?'['+i.ip+']':i.ip;const p=i.port||443;
+  const n=new URLSearchParams({encryption:'none',security:'tls',sni:d,fp:'randomized',type:'ws',host:d,path:'/?ed=2048'});
+  return `vless://${u}@${ip}:${p}?${n}#${encodeURIComponent(i.name||i.ip)}`;});}
+
+async function fg(){try{const r=await fetch(CFG.githubPreferredURL);if(!r.ok)return[];
+  return(await r.text()).trim().split('\n').filter(Boolean).map(l=>{const m=l.match(/^([^:]+):(\d+)#(.*)$/);
+    return m?{ip:m[1],port:+m[2],name:m[3].trim()||m[1]}:null;}).filter(Boolean);}catch{return[];}}
+
+async function bp(r){if(r&&CFG.ipPool[r])return CFG.ipPool[r];return Object.values(CFG.ipPool)[0];}
+
+/* Helpers */
+function cl2(s){try{if(s.readyState===1||s.readyState===2)s.close();}catch{}}
+function ba(s){if(!s)return{d:null};try{s=s.replace(/-/g,'+').replace(/_/g,'/');
+  return{d:Uint8Array.from(atob(s),c=>c.charCodeAt(0)).buffer};}catch(e){return{err:e}}}
+const hx=Array.from({length:256},(_,i)=>(i+256).toString(16).slice(1));
+function fi(a,o=0){const id=(hx[a[o]]+hx[a[o+1]]+hx[a[o+2]]+hx[a[o+3]]+'-'+hx[a[o+4]]+hx[a[o+5]]+'-'+
+  hx[a[o+6]]+hx[a[o+7]]+'-'+hx[a[o+8]]+hx[a[o+9]]+'-'+hx[a[o+10]]+hx[a[o+11]]+
+  hx[a[o+12]]+hx[a[o+13]]+hx[a[o+14]]+hx[a[o+15]]).toLowerCase();
+  if(!vu(id))throw TypeError(atob('U3RyaW5naWZpZWQgaWRlbnRpZmllciBpcyBpbnZhbGlk'));return id;}
+function vu(s){return/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(s)}
+function pa(i){if(!i)return{addr:'',port:null};const x=i.lastIndexOf(':');
+  if(x>0){const a=i.slice(0,x),p=parseInt(i.slice(x+1));if(!isNaN(p)&&p>0&&p<=65535)return{addr:a,port:p};}
+  return{addr:i,port:null};}
+
+/* Router */
+export default{async fetch(req,env,ctx){ctx.passThroughOnException();const url=new URL(req.url),reg=_r(req);
+  if(url.pathname==='/'||url.pathname==='/index.html')return landing();
+  if(url.pathname==='/health'||url.pathname==='/api/status')return new Response(JSON.stringify({ok:true,ts:new Date().toISOString(),region:reg}),{headers:{'Content-Type':'application/json'}});
+  if(url.pathname==='/robots.txt')return new Response('User-agent: *\nDisallow: /admin\n',{headers:{'Content-Type':'text/plain'}});
+  if(req.headers.get('Upgrade')?.toLowerCase()==='websocket')return onWS(req,await bp(reg));
+  if(req.method==='GET'&&url.pathname.length>1){const s=url.pathname.replace(/\/$/,'').split('/').filter(Boolean);
+    if(s[0]&&vu(s[0])){if(s[0]!==AUTH)return new Response('Forbidden',{status:403});if(s[1]==='sub')return sc(s[0],url);return sp();}}
+  return new Response('Not Found',{status:404});}};
+function _r(r){try{return CFG.regionMap[r.cf?.country]||'HK'}catch{return 'HK'}}
+function sp(){return new Response('<!DOCTYPE html><html lang="zh-CN"><head><meta charset="UTF-8"><title>Sub</title>'+
+  '<style>*{margin:0;padding:0;box-sizing:border-box}body{background:#000;color:#0f0;font-family:monospace;padding:2rem}'+
+  'h1{text-align:center}.btn{background:transparent;border:1px solid #0f0;color:#0f0;padding:.5rem 1rem;cursor:pointer}'+
+  '.btn:hover{background:#0f0;color:#000}#o{background:#000;border:1px solid #0f0;padding:.75rem;margin-top:1rem;display:none}'+
+  '</style></head><body><h1>Sub</h1><button class="btn" onclick="g(\'clash\')">Clash</button>'+
+  '<button class="btn" onclick="g(\'singbox\')">Sing-Box</button>'+
+  '<div id="o"></div><script>var b=location.href.replace(/\\/+$/,\'\');'+
+  'function g(t){var u=b+\'/sub\';var r=\'https://url.v1.mk/sub?target=\'+t+\'&url=\'+encodeURIComponent(u)+\'&insert=false\';'+
+  'document.getElementById(\'o\').style.display=\'block\';document.getElementById(\'o\').textContent=r;navigator.clipboard.writeText(r)}'+
+  '</script></body></html>',{status:200,headers:{'Content-Type':'text/html; charset=utf-8'}});}
+async function sc(u,url){const d=url.hostname,l=[];
+  l.push(...gl([{ip:d,name:'native'}],u,d));l.push(...gl(CFG.directDomains.map(x=>({ip:x,name:x})),u,d));
+  const ip=await fg();if(ip.length)l.push(...gl(ip,u,d));
+  if(!l.length)l.push('vless://0@127.0.0.1:80?encryption=none&security=none&type=ws&host=error.com&path=/&error');
+  return new Response(btoa(l.join('\n')),{headers:{'Content-Type':'text/plain','Cache-Control':'no-store'}});}
