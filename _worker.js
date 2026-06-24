@@ -26,7 +26,7 @@ async function handleWs(r) {
     try {
       let b = e.data instanceof ArrayBuffer ? new Uint8Array(e.data) : null;
       if (!b || b.length < 18) return;
-      let o = 17 + b[17] + 1;
+      let o = b[16] + 17;
       if (b[o++] !== 1) return;
       const t = b[o++]; let h, p;
       if (t === 1) { h = [...b.slice(o,o+4)].join("."); o+=4; }
