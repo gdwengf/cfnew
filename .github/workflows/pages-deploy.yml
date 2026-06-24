@@ -1,0 +1,24 @@
+name: Deploy to Pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      deployments: write
+    name: Deploy to Cloudflare Pages
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Deploy
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CF_PAGES_TOKEN }}
+          accountId: 3ba20cce66dce6b4dbf036a456b71bbc
+          command: pages deploy . --project-name=edge-7dd8 --branch main
+          gitHubToken: ${{ secrets.GITHUB_TOKEN }}
