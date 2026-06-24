@@ -1,298 +1,66 @@
-/**
- * Edge Router — lightweight HTTP/S proxy
- * (c) 2024-2026 Edge Project
- *
- * ## NOTICE ##
- * This module uses Cloudflare Workers runtime APIs.
- * See: developers.cloudflare.com/workers/runtime-apis
- */
+import { connect } from 'cloudflare:sockets';
 
-// @ts-nocheck
-// eslint-disable-next-line
+// --- 硬编码配置 ---
+const authToken = 'f64bdc57-0f54-4705-bf75-cfd646d98c06';
+let fallbackAddress = '';
+const socks5Config = '';
+const manualWorkerRegion = '';
+const customPath = '';
+const githubPreferredURL = 'https://raw.githubusercontent.com/qwer-search/bestip/refs/heads/main/kejilandbestip.txt';
+const enableGitHubPreferred = true;
+const enableOtherPreferred = true;
+const apiBaseUrl = 'https://url.v1.mk/sub';
 
-/* ─── Socket Wrapper ──────────────────────────────────────────────── */
-// Dynamically resolve 'cloudflare:sockets' to avoid static detection
-let __connect = null;
-async function __getConnect() {
-  if (!__connect) {
-    // @ts-ignore — Workers runtime module
-    const mod = await import('cloudflare:sockets');
-    __connect = mod.connect;
-  }
-  return __connect;
-}
+const directDomains = [
+  { name: "cloudflare.182682.xyz", domain: "cloudflare.182682.xyz" },
+  { name: "speed.marisalnc.com", domain: "speed.marisalnc.com" },
+  { domain: "freeyx.cloudflare88.eu.org" }, { domain: "bestcf.top" },
+  { domain: "cdn.2020111.xyz" }, { domain: "cfip.cfcdn.vip" },
+  { domain: "cf.0sm.com" }, { domain: "cf.090227.xyz" },
+  { domain: "cf.zhetengsha.eu.org" }, { domain: "cloudflare.9jy.cc" },
+  { domain: "cf.zerone-cdn.pp.ua" }, { domain: "cfip.1323123.xyz" },
+  { domain: "cnamefuckxxs.yuchen.icu" }, { domain: "cloudflare-ip.mofashi.ltd" },
+  { domain: "115155.xyz" }, { domain: "cname.xirancdn.us" },
+  { domain: "f3058171cad.002404.xyz" }, { domain: "8.889288.xyz" },
+  { domain: "cdn.tzpro.xyz" }, { domain: "cf.877771.xyz" },
+  { domain: "xn--b6gac.eu.org" }
+];
 
-/* ─── Config ──────────────────────────────────────────────────────── */
-const AUTH=atob('ZjY0YmRjNTctMGY1NC00NzA1LWJmNzUtY2ZkNjQ2ZDk4YzA2');
-const CFG = {
-  ipPool: {
-    'US': 'ProxyIP.US.CMLiussss.net:443',
-    'SG': 'ProxyIP.SG.CMLiussss.net:443',
-    'JP': 'ProxyIP.JP.CMLiussss.net:443',
-    'HK': 'ProxyIP.HK.CMLiussss.net:443',
-    'KR': 'ProxyIP.KR.CMLiussss.net:443',
-    'DE': 'ProxyIP.DE.CMLiussss.net:443',
-    'SE': 'ProxyIP.SE.CMLiussss.net:443',
-    'NL': 'ProxyIP.NL.CMLiussss.net:443',
-    'FI': 'ProxyIP.FI.CMLiussss.net:443',
-    'GB': 'ProxyIP.GB.CMLiussss.net:443',
-  },
-  regionMap: {
-    US:'US',SG:'SG',JP:'JP',HK:'HK',KR:'KR',
-    DE:'DE',SE:'SE',NL:'NL',FI:'FI',GB:'GB',
-    CN:'HK',TW:'HK',AU:'SG',CA:'US',
-  },
-  directDomains: [
-    'cloudflare.182682.xyz', 'speed.marisalnc.com',
-    'freeyx.cloudflare88.eu.org', 'bestcf.top',
-    'cdn.2020111.xyz', 'cfip.cfcdn.vip',
-    'cf.0sm.com', 'cf.090227.xyz',
-    'cf.zhetengsha.eu.org', 'cloudflare.9jy.cc',
-    'cf.zerone-cdn.pp.ua', 'cfip.1323123.xyz',
-    'cnamefuckxxs.yuchen.icu', 'cloudflare-ip.mofashi.ltd',
-    '115155.xyz', 'cname.xirancdn.us',
-    'f3058171cad.002404.xyz', '8.889288.xyz',
-    'cdn.tzpro.xyz', 'cf.877771.xyz',
-    'xn--b6gac.eu.org',
-  ],
-  githubPreferredURL: 'https://raw.githubusercontent.com/qwer-search/bestip/refs/heads/main/kejilandbestip.txt',
-  kvBinding: 'C',
-};
-const ERR = {
-  invalidData: atob('aW52YWxpZCBkYXRh'),
-  invalidUser: atob('aW52YWxpZCB1c2Vy'),
-  unsupportedCmd: atob('Y29tbWFuZCBpcyBub3Qgc3VwcG9ydGVk'),
-  udpDnsOnly: atob('VURQIHByb3h5IG9ubHkgZW5hYmxlIGZvciBETlMgd2hpY2ggaXMgcG9ydCA1Mw=='),
-  invalidAddrType: atob('aW52YWxpZCBhZGRyZXNzVHlwZQ=='),
-  emptyAddr: atob('YWRkcmVzc1ZhbHVlIGlzIGVtcHR5'),
-  wsNotOpen: atob('d2ViU29ja2V0LmVhZHlTdGF0ZSBpcyBub3Qgb3Blbg=='),
-};
+const parsedSocks5Config = {};
+const isSocksEnabled = false;
+let enableRegionMatching = true;
+let currentWorkerRegion = '';
 
-/* ─── Landing Page ───────────────────────────────────────────────── */
-function landingPage(request) {
-  const regions = ['us','sg','jp','hk','kr','de','uk','nl','fi'];
-  const dc = regions[Math.floor(Math.random() * regions.length)];
-  const latency = Math.floor(Math.random() * 80 + 10);
-  const buildNum = Math.floor(Math.random() * 9000 + 1000);
-  const html = `<!DOCTYPE html>\n<html lang="en">\n<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">\n<title>EdgeNet — Global Content Delivery</title>\n<style>\n*{margin:0;padding:0;box-sizing:border-box}\nbody{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#0a0a0f;color:#c8d6e5;line-height:1.6}\nheader{background:linear-gradient(135deg,#0f0f1a 0%,#1a1a2e 100%);padding:4rem 2rem;text-align:center;border-bottom:1px solid #1e3a5f}\nheader h1{font-size:2.5rem;background:linear-gradient(90deg,#00d2ff,#3a7bd5);-webkit-background-clip:text;-webkit-text-fill-color:transparent;margin-bottom:0.5rem}\nheader p{color:#7f8fa6;font-size:1.1rem}\n.container{max-width:960px;margin:0 auto;padding:2rem}\n.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:1.5rem;margin:2rem 0}\n.card{background:#141425;border:1px solid #1e3a5f;border-radius:12px;padding:1.5rem;transition:border-color 0.3s}\n.card:hover{border-color:#3a7bd5}\n.card h3{color:#00d2ff;margin-bottom:0.75rem}\n.card p{color:#7f8fa6;font-size:0.9rem}\n.dot{width:8px;height:8px;border-radius:50%;background:#2ecc71;animation:pulse 2s infinite}\n@keyframes pulse{0%,100%{opacity:1}50%{opacity:0.5}}\n.stats{display:flex;gap:2rem;justify-content:center;margin:1.5rem 0;flex-wrap:wrap}\n.stat{text-align:center}\n.stat-num{font-size:1.8rem;font-weight:700;color:#00d2ff}\n.stat-label{font-size:0.8rem;color:#7f8fa6;text-transform:uppercase}\nfooter{text-align:center;padding:2rem;color:#57606f;font-size:0.8rem;border-top:1px solid #1e3a5f;margin-top:2rem}\n</style></head><body><header>\n<div class="status"><span class="dot"></span><span>All systems operational</span></div>\n<h1>EdgeNet CDN</h1>\n<p>全球加速 · 智能路由 · 边缘计算 · ${buildNum}</p>\n</header>\n<div class="container"><div class="stats">\n<div class="stat"><div class="stat-num">${latency}ms</div><div class="stat-label">Avg Latency</div></div>\n<div class="stat"><div class="stat-num">${dc.toUpperCase()}</div><div class="stat-label">Nearest PoP</div></div>\n<div class="stat"><div class="stat-num">99.9%</div><div class="stat-label">Uptime</div></div>\n</div></div>\n<footer>EdgeNet CDN v2.4</footer></body></html>`;
-  return new Response(html, { status: 200, headers: { 'Content-Type': 'text/html; charset=utf-8' } });
-}
+const backupIPs = [
+  { domain: 'ProxyIP.US.CMLiussss.net', region: 'US', regionCode: 'US', port: 443 },
+  { domain: 'ProxyIP.SG.CMLiussss.net', region: 'SG', regionCode: 'SG', port: 443 },
+  { domain: 'ProxyIP.JP.CMLiussss.net', region: 'JP', regionCode: 'JP', port: 443 },
+  { domain: 'ProxyIP.HK.CMLiussss.net', region: 'HK', regionCode: 'HK', port: 443 },
+  { domain: 'ProxyIP.KR.CMLiussss.net', region: 'KR', regionCode: 'KR', port: 443 },
+  { domain: 'ProxyIP.DE.CMLiussss.net', region: 'DE', regionCode: 'DE', port: 443 },
+  { domain: 'ProxyIP.SE.CMLiussss.net', region: 'SE', regionCode: 'SE', port: 443 },
+  { domain: 'ProxyIP.NL.CMLiussss.net', region: 'NL', regionCode: 'NL', port: 443 },
+  { domain: 'ProxyIP.FI.CMLiussss.net', region: 'FI', regionCode: 'FI', port: 443 },
+  { domain: 'ProxyIP.GB.CMLiussss.net', region: 'GB', regionCode: 'GB', port: 443 }
+];
 
-/* ─── Proxy: Core ─────────────────────────────────────────────────── */
-const ADDR_IPv4 = 1;
-const ADDR_DOMAIN = 2;
-const ADDR_IPv6 = 3;
-
-async function onWebSocketUpgrade(request, fallbackAddr) {
-  const wsPair = new WebSocketPair();
-  const [client, server] = Object.values(wsPair);
-  server.accept();
-  let conn = { socket: null };
-  let isDNS = false;
-  const early = request.headers.get('sec-websocket-protocol') || '';
-  const rd = _mkStream(server, early);
-  rd.pipeTo(new WritableStream({
-    async write(chunk) {
-      if (isDNS) return _dnsFwd(chunk, server, null);
-      if (conn.socket) {
-        const w = conn.socket.writable.getWriter();
-        await w.write(chunk); w.releaseLock(); return;
-      }
-      const p = _parseHdr(chunk);
-      if (p.error) throw new Error(p.error);
-      if (p.isUDP && p.port !== 53) throw new Error(ERR.udpDnsOnly);
-      if (p.isUDP) { isDNS = true; }
-      const hdr = new Uint8Array([p.ver[0], 0]);
-      if (isDNS) return _dnsFwd(chunk.slice(p.off), server, hdr);
-      await _tcpFwd(p.addrType, p.host, p.port, chunk.slice(p.off), server, hdr, conn, fallbackAddr);
-    }
-  })).catch(e => {});
-  return new Response(null, { status: 101, webSocket: client });
-}
-
-async function _tcpFwd(type, host, port, data, ws, hdr, conn, fb) {
-  const connect = await __getConnect();
-  async function doconn(a, p) {
-    const s = connect({ hostname: a, port: p });
-    const w = s.writable.getWriter();
-    await w.write(data); w.releaseLock(); return s;
-  }
-  async function fbFn() {
-    let f = fb;
-    if (!f) { const b = await _bestIP(); if (b) f = b; }
-    const pa = _parseA(f || host + ':' + port);
-    const s = await doconn(pa.addr || host, pa.port || port);
-    conn.socket = s;
-    s.closed.catch(()=>{}).finally(()=>_cl(ws));
-    _pipe(s, ws, hdr, null);
-  }
-  try {
-    const s = await doconn(host, port);
-    conn.socket = s;
-    _pipe(s, ws, hdr, fbFn);
-  } catch { fbFn(); }
-}
-
-function _parseHdr(c) {
-  if (c.byteLength < 24) return { error: ERR.invalidData };
-  const ver = new Uint8Array(c.slice(0, 1));
-  if (_fmtId(new Uint8Array(c.slice(1, 17))) !== AUTH) return { error: ERR.invalidUser };
-  const ol = new Uint8Array(c.slice(17, 18))[0];
-  const cmd = new Uint8Array(c.slice(18+ol, 19+ol))[0];
-  if (cmd !== 1 && cmd !== 2) return { error: ERR.unsupportedCmd };
-  const isUDP = cmd === 2;
-  const pi = 19+ol;
-  const port = new DataView(c.slice(pi, pi+2)).getUint16(0);
-  let ai = pi+2, v = ai+1, host=''; const at = new Uint8Array(c.slice(ai, v))[0];
-  switch(at) {
-    case ADDR_IPv4: v; host=new Uint8Array(c.slice(v,v+4)).join('.'); break;
-    case ADDR_DOMAIN: const l=new Uint8Array(c.slice(v,v+1))[0]; v+=1; host=new TextDecoder().decode(c.slice(v,v+l)); break;
-    case ADDR_IPv6: host='::1'; break;
-    default: return {error: ERR.invalidAddrType};
-  }
-  if (!host) return { error: ERR.emptyAddr };
-  return { error: null, addrType: at, port, host, isUDP, ver, off: v };
-}
-
-function _mkStream(s, e) {
-  let c = false; return new ReadableStream({
-    start(ctrl) {
-      s.addEventListener('message', ev => { if(!c) ctrl.enqueue(ev.data); });
-      s.addEventListener('close', () => { if(!c) { _cl(s); ctrl.close(); } });
-      s.addEventListener('error', e => ctrl.error(e));
-      const d = _bA(e); if(d.err) ctrl.error(d.err); else if(d.d) ctrl.enqueue(d.d);
-    },
-    cancel() { c=true; _cl(s); }
-  });
-}
-
-async function _pipe(r, ws, hdr, retry) {
-  let h = hdr, hasD = false;
-  await r.readable.pipeTo(new WritableStream({
-    async write(chunk, ctrl) {
-      hasD = true;
-      if (ws.readyState !== 1) ctrl.error(ERR.wsNotOpen);
-      if (h) { ws.send(await new Blob([h,chunk]).arrayBuffer()); h=null; }
-      else ws.send(chunk);
-    }
-  })).catch(()=>_cl(ws));
-  if (!hasD && retry) retry();
-}
-
-async function _dnsFwd(c, ws, r) {
-  try {
-    const connect = await __getConnect();
-    const s = connect({ hostname: '8.8.4.4', port: 53 });
-    let h = r;
-    const w = s.writable.getWriter(); await w.write(c); w.releaseLock();
-    await s.readable.pipeTo(new WritableStream({
-      async write(x) {
-        if (ws.readyState === 1) {
-          if (h) { ws.send(await new Blob([h,x]).arrayBuffer()); h=null; }
-          else ws.send(x);
-        }
-      }
-    }));
-  } catch(e) { console.error('dns:', e.message); }
-}
-
-/* ─── Subscription helpers ────────────────────────────────────────── */
-function genLinks(list, uuid, domain) {
-  return list.map(item => {
-    const ip = item.ip.includes(':') ? '['+item.ip+']' : item.ip;
-    const port = item.port || 443;
-    const p = new URLSearchParams({
-      encryption: 'none', security: 'tls', sni: domain,
-      fp: 'randomized', type: 'ws', host: domain, path: '/?ed=2048'
-    });
-    return `vless://${uuid}@${ip}:${port}?${p.toString()}#${_e(item.name||item.ip)}`;
-  });
-}
-
-async function fetchGitHubIPs() {
-  try {
-    const r = await fetch(CFG.githubPreferredURL);
-    if (!r.ok) return [];
-    const text = await r.text();
-    return text.trim().split('\n').filter(Boolean).map(line => {
-      const m = line.match(/^([^:]+):(\d+)#(.*)$/);
-      return m ? { ip: m[1], port: parseInt(m[2]), name: m[3].trim()||m[1] } : null;
-    }).filter(Boolean);
-  } catch { return []; }
-}
-
-async function _bestIP(region) {
-  if (region && CFG.ipPool[region]) return CFG.ipPool[region];
-  return Object.values(CFG.ipPool)[0];
-}
-
-/* ─── Subscription page & content ─────────────────────────────────── */
-function subPage() {
-  return new Response(`<!DOCTYPE html><html lang="zh-CN"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"><title>订阅中心</title><style>\n*{margin:0;padding:0;box-sizing:border-box}body{background:#000;color:#0f0;font-family:monospace;padding:2rem}\nh1{text-align:center;text-shadow:0 0 10px #0f0}\n.btn{background:transparent;border:1px solid #0f0;color:#0f0;padding:0.5rem 1rem;cursor:pointer}\n.btn:hover{background:#0f0;color:#000}\n.url-box{background:#000;border:1px solid #0f0;padding:0.75rem;margin-top:1rem;word-break:break-all;display:none}</style></head><body>\n<h1>订阅中心</h1>\n<button class="btn" onclick="g('clash')">Clash</button>\n<button class="btn" onclick="g('singbox')">Sing-Box</button>\n<button class="btn" onclick="g('v2ray')">V2Ray</button>\n<div id="o" class="url-box"></div>\n<script>var b=location.href.replace(/\\/+$/,'');function g(t){var u=b+'/sub';var r='https://url.v1.mk/sub?target='+t+'&url='+encodeURIComponent(u)+'&insert=false';document.getElementById('o').style.display='block';document.getElementById('o').textContent=r;navigator.clipboard.writeText(r)}</script></body></html>`, {
-    status: 200, headers: { 'Content-Type': 'text/html; charset=utf-8' }
-  });
-}
-
-async function subContent(uuid, url) {
-  const domain = url.hostname;
-  const links = [];
-  links.push(...genLinks([{ip:domain,name:'原生'}], uuid, domain));
-  const doms = CFG.directDomains.map(d => ({ip:d, name:d}));
-  links.push(...genLinks(doms, uuid, domain));
-  const ips = await fetchGitHubIPs();
-  if (ips.length > 0) links.push(...genLinks(ips, uuid, domain));
-  if (links.length === 0) {
-    links.push(`vless://00000000-0000-0000-0000-000000000000@127.0.0.1:80?encryption=none&security=none&type=ws&host=error.com&path=%2F#error`);
-  }
-  return new Response(btoa(links.join('\n')), {
-    headers: { 'Content-Type': 'text/plain', 'Cache-Control': 'no-store' }
-  });
-}
-
-/* ─── Helpers ─────────────────────────────────────────────────────── */
-function _cl(s) { try { if(s.readyState===1||s.readyState===2) s.close(); } catch{} }
-function _bA(s) { if(!s) return {d:null}; try { s=s.replace(/-/g,'+').replace(/_/g,'/'); return {d:Uint8Array.from(atob(s),c=>c.charCodeAt(0)).buffer}; } catch(e) { return{err:e}; } }
-const _h = Array.from({length:256},(_,i)=>(i+256).toString(16).slice(1));
-function _fmtId(a, o=0) {
-  const id=(_h[a[o]]+_h[a[o+1]]+_h[a[o+2]]+_h[a[o+3]]+'-'+_h[a[o+4]]+_h[a[o+5]]+'-'+_h[a[o+6]]+_h[a[o+7]]+'-'+_h[a[o+8]]+_h[a[o+9]]+'-'+_h[a[o+10]]+_h[a[o+11]]+_h[a[o+12]]+_h[a[o+13]]+_h[a[o+14]]+_h[a[o+15]]).toLowerCase();
-  if (!isValidUUID(id)) throw new TypeError(atob('U3RyaW5naWZpZWQgaWRlbnRpZmllciBpcyBpbnZhbGlk'));
-  return id;
-}
-function isValidUUID(s) { return /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(s); }
-function _parseA(i) { if(!i) return{addr:'',port:null}; const ci=i.lastIndexOf(':'); if(ci>0){const a=i.slice(0,ci),p=parseInt(i.slice(ci+1)); if(!isNaN(p)&&p>0&&p<=65535) return{addr:a,port:p};} return{addr:i,port:null}; }
-function _e(s) { return encodeURIComponent(s); }
-
-/* ─── Router ───────────────────────────────────────────────────────── */
 export default {
   async fetch(request, env, ctx) {
-    ctx.passThroughOnException();
-    const url = new URL(request.url);
-    const region = regionForRequest(request);
-    /* ✦ Public site endpoints ✦ */
-    if (url.pathname === '/' || url.pathname === '/index.html') return landingPage(request);
-    if (url.pathname === '/health' || url.pathname === '/api/status') {
-      return new Response(JSON.stringify({ok:true,ts:new Date().toISOString(),region}),
-        {headers:{'Content-Type':'application/json'}});
-    }
-    if (url.pathname === '/robots.txt') return new Response('User-agent: *\nDisallow: /admin\n',
-      {headers:{'Content-Type':'text/plain'}});
-    if (request.headers.get('Upgrade')?.toLowerCase() === 'websocket') {
-      const fb = await _bestIP(region);
-      return onWebSocketUpgrade(request, fb);
-    }
-    /* ✦ Subscription ✦ */
-    if (request.method === 'GET' && url.pathname.length > 1 && url.pathname !== '/') {
-      const segs = url.pathname.replace(/\/$/,'').split('/').filter(Boolean);
-      if (segs[0] && isValidUUID(segs[0])) {
-        if (segs[0] !== AUTH) return new Response('Forbidden', {status:403});
-        if (segs[1] === 'sub') return subContent(segs[0], url);
-        return subPage();
+    try {
+      const url = new URL(request.url);
+      if (request.headers.get('Upgrade') === 'websocket') {
+        return handleWsRequest(request);
+      } else if (request.method === 'GET') {
+        if (url.pathname === '/') {
+          return new Response('OK', { status: 200 });
+        }
+        if (url.pathname.includes('/sub')) {
+          return new Response('sub', { status: 200 });
+        }
       }
+      return new Response('Not Found', { status: 404 });
+    } catch (err) {
+      return new Response(err.toString(), { status: 500 });
     }
-    return new Response('Not Found', {status:404});
-  }
+  },
 };
-function regionForRequest(request) {
-  try { const c = request.cf?.country; return CFG.regionMap[c] || 'HK'; }
-  catch { return 'HK'; }
-}
