@@ -68,102 +68,14 @@ const ERR = {
   wsNotOpen: atob('d2ViU29ja2V0LmVhZHlTdGF0ZSBpcyBub3Qgb3Blbg=='),
 };
 
-/* ─── Utilities ───────────────────────────────────────────────────── */
-const _b = (s) => atob(s);
-const _e = (s) => encodeURIComponent(s);
-const _now = () => Date.now();
-
-function uuidV4() {
-  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => {
-    const r = Math.random() * 16 | 0;
-    return (c === 'x' ? r : (r & 0x3 | 0x8)).toString(16);
-  });
-}
-
-function isValidUUID(s) {
-  return /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(s);
-}
-
-function parseAddr(input) {
-  if (!input) return { addr: '', port: null };
-  if (input.includes('[') && input.includes(']')) {
-    const m = input.match(/^\[([^\]]+)\](?::(\d+))?$/);
-    if (m) return { addr: m[1], port: m[2] ? parseInt(m[2]) : null };
-  }
-  const ci = input.lastIndexOf(':');
-  if (ci > 0) {
-    const addr = input.slice(0, ci);
-    const port = parseInt(input.slice(ci + 1));
-    if (!isNaN(port) && port > 0 && port <= 65535) return { addr, port };
-  }
-  return { addr: input, port: null };
-}
-
-function regionForRequest(request) {
-  try {
-    const c = request.cf?.country;
-    return CFG.regionMap[c] || 'HK';
-  } catch { return 'HK'; }
-}
-
-/* ─── Landing Page (real-looking static site) ─────────────────────── */
+/* ─── Landing Page ───────────────────────────────────────────────── */
 function landingPage(request) {
   const regions = ['us','sg','jp','hk','kr','de','uk','nl','fi'];
   const dc = regions[Math.floor(Math.random() * regions.length)];
   const latency = Math.floor(Math.random() * 80 + 10);
   const buildNum = Math.floor(Math.random() * 9000 + 1000);
-
-  const html = `<!DOCTYPE html>
-<html lang="en">
-<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
-<title>EdgeNet — Global Content Delivery</title>
-<style>
-*{margin:0;padding:0;box-sizing:border-box}
-body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#0a0a0f;color:#c8d6e5;line-height:1.6}
-header{background:linear-gradient(135deg,#0f0f1a 0%,#1a1a2e 100%);padding:4rem 2rem;text-align:center;border-bottom:1px solid #1e3a5f}
-header h1{font-size:2.5rem;background:linear-gradient(90deg,#00d2ff,#3a7bd5);-webkit-background-clip:text;-webkit-text-fill-color:transparent;margin-bottom:0.5rem}
-header p{color:#7f8fa6;font-size:1.1rem}
-.container{max-width:960px;margin:0 auto;padding:2rem}
-.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:1.5rem;margin:2rem 0}
-.card{background:#141425;border:1px solid #1e3a5f;border-radius:12px;padding:1.5rem;transition:border-color 0.3s}
-.card:hover{border-color:#3a7bd5}
-.card h3{color:#00d2ff;margin-bottom:0.75rem}
-.card p{color:#7f8fa6;font-size:0.9rem}
-.status{display:inline-flex;align-items:center;gap:0.5rem;background:#141425;border:1px solid #1e3a5f;border-radius:20px;padding:0.5rem 1rem;margin:1rem 0;font-size:0.85rem}
-.dot{width:8px;height:8px;border-radius:50%;background:#2ecc71;animation:pulse 2s infinite}
-@keyframes pulse{0%,100%{opacity:1}50%{opacity:0.5}}
-.stats{display:flex;gap:2rem;justify-content:center;margin:1.5rem 0;flex-wrap:wrap}
-.stat{text-align:center}
-.stat-num{font-size:1.8rem;font-weight:700;color:#00d2ff}
-.stat-label{font-size:0.8rem;color:#7f8fa6;text-transform:uppercase}
-footer{text-align:center;padding:2rem;color:#57606f;font-size:0.8rem;border-top:1px solid #1e3a5f;margin-top:2rem}
-</style>
-</head>
-<body>
-<header>
-<div class="status"><span class="dot"></span><span>All systems operational</span></div>
-<h1>EdgeNet CDN</h1>
-<p>全球加速 · 智能路由 · 边缘计算 · ${buildNum}</p>
-</header>
-<div class="container">
-<div class="stats">
-<div class="stat"><div class="stat-num">${latency}ms</div><div class="stat-label">Avg Latency</div></div>
-<div class="stat"><div class="stat-num">${dc.toUpperCase()}</div><div class="stat-label">Nearest PoP</div></div>
-<div class="stat"><div class="stat-num">99.9%</div><div class="stat-label">Uptime</div></div>
-</div>
-<div class="cards">
-<div class="card"><h3>⚡ Edge Cache</h3><p>Intelligent caching at 300+ edge locations worldwide. Sub-millisecond cache lookups with automatic purging.</p></div>
-<div class="card"><h3>🌐 Smart Routing</h3><p>Real-time traffic optimization across multiple backbone providers. Automatic failover and load balancing.</p></div>
-<div class="card"><h3>🔒 DDoS Shield</h3><p>Multi-layer DDoS mitigation with automatic attack detection and traffic filtering at the network edge.</p></div>
-</div>
-<p style="text-align:center;color:#57606f;margin-top:1rem">EdgeNet CDN v2.4 — Built ${new Date().toISOString().slice(0,10)}</p>
-</div>
-<footer>© ${new Date().getFullYear()} EdgeNet. All rights reserved. <span style="opacity:0.5">|</span> <a href="mailto:support@edgenet.dev" style="color:#57606f;text-decoration:none">Contact</a></footer>
-</body></html>`;
-  return new Response(html, {
-    status: 200,
-    headers: { 'Content-Type': 'text/html; charset=utf-8' }
-  });
+  const html = `<!DOCTYPE html>\n<html lang="en">\n<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">\n<title>EdgeNet — Global Content Delivery</title>\n<style>\n*{margin:0;padding:0;box-sizing:border-box}\nbody{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#0a0a0f;color:#c8d6e5;line-height:1.6}\nheader{background:linear-gradient(135deg,#0f0f1a 0%,#1a1a2e 100%);padding:4rem 2rem;text-align:center;border-bottom:1px solid #1e3a5f}\nheader h1{font-size:2.5rem;background:linear-gradient(90deg,#00d2ff,#3a7bd5);-webkit-background-clip:text;-webkit-text-fill-color:transparent;margin-bottom:0.5rem}\nheader p{color:#7f8fa6;font-size:1.1rem}\n.container{max-width:960px;margin:0 auto;padding:2rem}\n.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:1.5rem;margin:2rem 0}\n.card{background:#141425;border:1px solid #1e3a5f;border-radius:12px;padding:1.5rem;transition:border-color 0.3s}\n.card:hover{border-color:#3a7bd5}\n.card h3{color:#00d2ff;margin-bottom:0.75rem}\n.card p{color:#7f8fa6;font-size:0.9rem}\n.dot{width:8px;height:8px;border-radius:50%;background:#2ecc71;animation:pulse 2s infinite}\n@keyframes pulse{0%,100%{opacity:1}50%{opacity:0.5}}\n.stats{display:flex;gap:2rem;justify-content:center;margin:1.5rem 0;flex-wrap:wrap}\n.stat{text-align:center}\n.stat-num{font-size:1.8rem;font-weight:700;color:#00d2ff}\n.stat-label{font-size:0.8rem;color:#7f8fa6;text-transform:uppercase}\nfooter{text-align:center;padding:2rem;color:#57606f;font-size:0.8rem;border-top:1px solid #1e3a5f;margin-top:2rem}\n</style></head><body><header>\n<div class="status"><span class="dot"></span><span>All systems operational</span></div>\n<h1>EdgeNet CDN</h1>\n<p>全球加速 · 智能路由 · 边缘计算 · ${buildNum}</p>\n</header>\n<div class="container"><div class="stats">\n<div class="stat"><div class="stat-num">${latency}ms</div><div class="stat-label">Avg Latency</div></div>\n<div class="stat"><div class="stat-num">${dc.toUpperCase()}</div><div class="stat-label">Nearest PoP</div></div>\n<div class="stat"><div class="stat-num">99.9%</div><div class="stat-label">Uptime</div></div>\n</div></div>\n<footer>EdgeNet CDN v2.4</footer></body></html>`;
+  return new Response(html, { status: 200, headers: { 'Content-Type': 'text/html; charset=utf-8' } });
 }
 
 /* ─── Proxy: Core ─────────────────────────────────────────────────── */
@@ -175,152 +87,125 @@ async function onWebSocketUpgrade(request, fallbackAddr) {
   const wsPair = new WebSocketPair();
   const [client, server] = Object.values(wsPair);
   server.accept();
-
   let conn = { socket: null };
   let isDNS = false;
-  const earlyData = request.headers.get('sec-websocket-protocol') || '';
-  const readable = _makeStream(server, earlyData);
-
-  readable.pipeTo(new WritableStream({
+  const early = request.headers.get('sec-websocket-protocol') || '';
+  const rd = _mkStream(server, early);
+  rd.pipeTo(new WritableStream({
     async write(chunk) {
-      if (isDNS) return _dnsForward(chunk, server, null);
+      if (isDNS) return _dnsFwd(chunk, server, null);
       if (conn.socket) {
         const w = conn.socket.writable.getWriter();
-        await w.write(chunk);
-        w.releaseLock();
-        return;
+        await w.write(chunk); w.releaseLock(); return;
       }
-      const p = _parseHeader(chunk);
+      const p = _parseHdr(chunk);
       if (p.error) throw new Error(p.error);
-      if (p.isUDP) {
-        if (p.port === 53) { isDNS = true; } else throw new Error(ERR.udpDnsOnly);
-      }
-      const resp = new Uint8Array([p.version[0], 0]);
-      if (isDNS) return _dnsForward(chunk.slice(p.dataOffset), server, resp);
-      await _tcpForward(p.addrType, p.host, p.port, chunk.slice(p.dataOffset), server, resp, conn, fallbackAddr);
+      if (p.isUDP && p.port !== 53) throw new Error(ERR.udpDnsOnly);
+      if (p.isUDP) { isDNS = true; }
+      const hdr = new Uint8Array([p.ver[0], 0]);
+      if (isDNS) return _dnsFwd(chunk.slice(p.off), server, hdr);
+      await _tcpFwd(p.addrType, p.host, p.port, chunk.slice(p.off), server, hdr, conn, fallbackAddr);
     }
-  })).catch(e => console.error('stream:', e));
-
+  })).catch(e => {});
   return new Response(null, { status: 101, webSocket: client });
 }
 
-async function _tcpForward(type, host, port, data, ws, resp, conn, fb) {
+async function _tcpFwd(type, host, port, data, ws, hdr, conn, fb) {
   const connect = await __getConnect();
-
-  async function doConnect(address, portNum) {
-    const s = connect({ hostname: address, port: portNum });
+  async function doconn(a, p) {
+    const s = connect({ hostname: a, port: p });
     const w = s.writable.getWriter();
-    await w.write(data);
-    w.releaseLock();
-    return s;
+    await w.write(data); w.releaseLock(); return s;
   }
-
-  async function fallback() {
+  async function fbFn() {
     let f = fb;
-    if (!f) {
-      const best = await _bestIP();
-      if (best) f = best;
-    }
-    const p = parseAddr(f || host + ':' + port);
-    const s = await doConnect(p.addr || host, p.port || port);
+    if (!f) { const b = await _bestIP(); if (b) f = b; }
+    const pa = _parseA(f || host + ':' + port);
+    const s = await doconn(pa.addr || host, pa.port || port);
     conn.socket = s;
-    s.closed.catch(() => {}).finally(() => _close(ws));
-    _pipe(s, ws, resp, null);
+    s.closed.catch(()=>{}).finally(()=>_cl(ws));
+    _pipe(s, ws, hdr, null);
   }
-
   try {
-    const s = await doConnect(host, port);
+    const s = await doconn(host, port);
     conn.socket = s;
-    _pipe(s, ws, resp, fallback);
-  } catch {
-    fallback();
-  }
+    _pipe(s, ws, hdr, fbFn);
+  } catch { fbFn(); }
 }
 
-function _parseHeader(chunk) {
-  if (chunk.byteLength < 24) return { error: ERR.invalidData };
-  const ver = new Uint8Array(chunk.slice(0, 1));
-  const ident = _fmtId(new Uint8Array(chunk.slice(1, 17)));
-  if (ident !== AUTH) return { error: ERR.invalidUser };
-  const optLen = new Uint8Array(chunk.slice(17, 18))[0];
-  const cmd = new Uint8Array(chunk.slice(18 + optLen, 19 + optLen))[0];
+function _parseHdr(c) {
+  if (c.byteLength < 24) return { error: ERR.invalidData };
+  const ver = new Uint8Array(c.slice(0, 1));
+  if (_fmtId(new Uint8Array(c.slice(1, 17))) !== AUTH) return { error: ERR.invalidUser };
+  const ol = new Uint8Array(c.slice(17, 18))[0];
+  const cmd = new Uint8Array(c.slice(18+ol, 19+ol))[0];
   if (cmd !== 1 && cmd !== 2) return { error: ERR.unsupportedCmd };
   const isUDP = cmd === 2;
-  const pIdx = 19 + optLen;
-  const port = new DataView(chunk.slice(pIdx, pIdx + 2)).getUint16(0);
-  let aIdx = pIdx + 2, aLen = 0, vIdx = aIdx + 1, host = '';
-  const addrType = new Uint8Array(chunk.slice(aIdx, vIdx))[0];
-  switch (addrType) {
-    case ADDR_IPv4: aLen = 4; host = new Uint8Array(chunk.slice(vIdx, vIdx + aLen)).join('.'); break;
-    case ADDR_DOMAIN: aLen = new Uint8Array(chunk.slice(vIdx, vIdx + 1))[0]; vIdx += 1; host = new TextDecoder().decode(chunk.slice(vIdx, vIdx + aLen)); break;
-    case ADDR_IPv6: aLen = 16; const p6=[]; const dv=new DataView(chunk.slice(vIdx, vIdx+aLen)); for (let i=0; i<8; i++) p6.push(dv.getUint16(i*2).toString(16)); host=p6.join(':'); break;
-    default: return { error: ERR.invalidAddrType + ': ' + addrType };
+  const pi = 19+ol;
+  const port = new DataView(c.slice(pi, pi+2)).getUint16(0);
+  let ai = pi+2, v = ai+1, host=''; const at = new Uint8Array(c.slice(ai, v))[0];
+  switch(at) {
+    case ADDR_IPv4: v; host=new Uint8Array(c.slice(v,v+4)).join('.'); break;
+    case ADDR_DOMAIN: const l=new Uint8Array(c.slice(v,v+1))[0]; v+=1; host=new TextDecoder().decode(c.slice(v,v+l)); break;
+    case ADDR_IPv6: host='::1'; break;
+    default: return {error: ERR.invalidAddrType};
   }
   if (!host) return { error: ERR.emptyAddr };
-  return { error: null, addrType, port, host, isUDP, version: ver, dataOffset: vIdx + aLen };
+  return { error: null, addrType: at, port, host, isUDP, ver, off: v };
 }
 
-function _makeStream(socket, early) {
-  let cancelled = false;
-  return new ReadableStream({
+function _mkStream(s, e) {
+  let c = false; return new ReadableStream({
     start(ctrl) {
-      socket.addEventListener('message', e => { if (!cancelled) ctrl.enqueue(e.data); });
-      socket.addEventListener('close', () => { if (!cancelled) { _close(socket); ctrl.close(); } });
-      socket.addEventListener('error', e => ctrl.error(e));
-      const { data, error } = _b64Arr(early);
-      if (error) ctrl.error(error);
-      else if (data) ctrl.enqueue(data);
+      s.addEventListener('message', ev => { if(!c) ctrl.enqueue(ev.data); });
+      s.addEventListener('close', () => { if(!c) { _cl(s); ctrl.close(); } });
+      s.addEventListener('error', e => ctrl.error(e));
+      const d = _bA(e); if(d.err) ctrl.error(d.err); else if(d.d) ctrl.enqueue(d.d);
     },
-    cancel() { cancelled = true; _close(socket); }
+    cancel() { c=true; _cl(s); }
   });
 }
 
-async function _pipe(remote, ws, header, retry) {
-  let h = header, hasData = false;
-  await remote.readable.pipeTo(new WritableStream({
+async function _pipe(r, ws, hdr, retry) {
+  let h = hdr, hasD = false;
+  await r.readable.pipeTo(new WritableStream({
     async write(chunk, ctrl) {
-      hasData = true;
+      hasD = true;
       if (ws.readyState !== 1) ctrl.error(ERR.wsNotOpen);
-      if (h) { ws.send(await new Blob([h, chunk]).arrayBuffer()); h = null; }
+      if (h) { ws.send(await new Blob([h,chunk]).arrayBuffer()); h=null; }
       else ws.send(chunk);
     }
-  })).catch(e => { _close(ws); });
-  if (!hasData && retry) retry();
+  })).catch(()=>_cl(ws));
+  if (!hasD && retry) retry();
 }
 
-async function _dnsForward(chunk, ws, resp) {
+async function _dnsFwd(c, ws, r) {
   try {
     const connect = await __getConnect();
     const s = connect({ hostname: '8.8.4.4', port: 53 });
-    let h = resp;
-    const w = s.writable.getWriter();
-    await w.write(chunk);
-    w.releaseLock();
+    let h = r;
+    const w = s.writable.getWriter(); await w.write(c); w.releaseLock();
     await s.readable.pipeTo(new WritableStream({
-      async write(chunk2) {
+      async write(x) {
         if (ws.readyState === 1) {
-          if (h) { ws.send(await new Blob([h, chunk2]).arrayBuffer()); h = null; }
-          else ws.send(chunk2);
+          if (h) { ws.send(await new Blob([h,x]).arrayBuffer()); h=null; }
+          else ws.send(x);
         }
       }
     }));
-  } catch (e) { console.error('dns:', e.message); }
+  } catch(e) { console.error('dns:', e.message); }
 }
 
 /* ─── Subscription helpers ────────────────────────────────────────── */
 function genLinks(list, uuid, domain) {
-  const protocol = 'vless';
-  const path = '/?ed=2048';
   return list.map(item => {
-    const safeIP = item.ip.includes(':') ? '[' + item.ip + ']' : item.ip;
+    const ip = item.ip.includes(':') ? '['+item.ip+']' : item.ip;
     const port = item.port || 443;
     const p = new URLSearchParams({
-      encryption: 'none', security: 'tls',
-      sni: domain, fp: 'randomized',
-      type: 'ws', host: domain, path
+      encryption: 'none', security: 'tls', sni: domain,
+      fp: 'randomized', type: 'ws', host: domain, path: '/?ed=2048'
     });
-    const name = _e(item.name || item.ip);
-    return `${protocol}://${uuid}@${safeIP}:${port}?${p.toString()}#${name}`;
+    return `vless://${uuid}@${ip}:${port}?${p.toString()}#${_e(item.name||item.ip)}`;
   });
 }
 
@@ -331,12 +216,11 @@ async function fetchGitHubIPs() {
     const text = await r.text();
     return text.trim().split('\n').filter(Boolean).map(line => {
       const m = line.match(/^([^:]+):(\d+)#(.*)$/);
-      return m ? { ip: m[1], port: parseInt(m[2]), name: m[3].trim() || m[1] } : null;
+      return m ? { ip: m[1], port: parseInt(m[2]), name: m[3].trim()||m[1] } : null;
     }).filter(Boolean);
   } catch { return []; }
 }
 
-/* ─── Best IP selection ───────────────────────────────────────────── */
 async function _bestIP(region) {
   if (region && CFG.ipPool[region]) return CFG.ipPool[region];
   return Object.values(CFG.ipPool)[0];
@@ -344,133 +228,71 @@ async function _bestIP(region) {
 
 /* ─── Subscription page & content ─────────────────────────────────── */
 function subPage() {
-  return new Response(`
-<!DOCTYPE html><html lang="zh-CN"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"><title>订阅中心</title><style>
-*{margin:0;padding:0;box-sizing:border-box}body{background:#000;color:#0f0;font-family:monospace;padding:2rem}
-h1{text-align:center;text-shadow:0 0 10px #0f0;margin-bottom:2rem}
-.card{background:#0a0a0a;border:1px solid #0f0;padding:1.5rem;margin:1rem 0;border-radius:4px}
-.btn{background:transparent;border:1px solid #0f0;color:#0f0;padding:0.5rem 1rem;cursor:pointer;margin:0.25rem}
-.btn:hover{background:#0f0;color:#000}
-.url-box{background:#000;border:1px solid #0f0;padding:0.75rem;margin-top:1rem;word-break:break-all;display:none;font-size:0.85rem}
-</style></head><body>
-<h1>🔗 订阅中心</h1>
-<div class="card" id="clients">
-<button class="btn" onclick="g('clash','clash')">Clash</button>
-<button class="btn" onclick="g('singbox','sing-box')">Sing-Box</button>
-<button class="btn" onclick="g('surge','surge')">Surge</button>
-<button class="btn" onclick="g('loon','loon')">Loon</button>
-<button class="btn" onclick="g('v2ray','v2ray')">V2Ray</button>
-</div>
-<div id="out" class="url-box"></div>
-<script>
-var base=location.href.replace(/\\/+$/,'');
-function g(t,n){var u=base+'/sub';var r='https://url.v1.mk/sub?target='+t+'&url='+encodeURIComponent(u)+'&insert=false';document.getElementById('out').style.display='block';document.getElementById('out').textContent=r;navigator.clipboard.writeText(r)}
-</script>
-</body></html>`, {
-    status: 200,
-    headers: { 'Content-Type': 'text/html; charset=utf-8' }
+  return new Response(`<!DOCTYPE html><html lang="zh-CN"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"><title>订阅中心</title><style>\n*{margin:0;padding:0;box-sizing:border-box}body{background:#000;color:#0f0;font-family:monospace;padding:2rem}\nh1{text-align:center;text-shadow:0 0 10px #0f0}\n.btn{background:transparent;border:1px solid #0f0;color:#0f0;padding:0.5rem 1rem;cursor:pointer}\n.btn:hover{background:#0f0;color:#000}\n.url-box{background:#000;border:1px solid #0f0;padding:0.75rem;margin-top:1rem;word-break:break-all;display:none}</style></head><body>\n<h1>订阅中心</h1>\n<button class="btn" onclick="g('clash')">Clash</button>\n<button class="btn" onclick="g('singbox')">Sing-Box</button>\n<button class="btn" onclick="g('v2ray')">V2Ray</button>\n<div id="o" class="url-box"></div>\n<script>var b=location.href.replace(/\\/+$/,'');function g(t){var u=b+'/sub';var r='https://url.v1.mk/sub?target='+t+'&url='+encodeURIComponent(u)+'&insert=false';document.getElementById('o').style.display='block';document.getElementById('o').textContent=r;navigator.clipboard.writeText(r)}</script></body></html>`, {
+    status: 200, headers: { 'Content-Type': 'text/html; charset=utf-8' }
   });
 }
 
 async function subContent(uuid, url) {
   const domain = url.hostname;
   const links = [];
-
-  // Native address
-  links.push(...genLinks([{ ip: domain, name: '原生' }], uuid, domain));
-
-  // Direct domains
-  const doms = CFG.directDomains.map(d => ({ ip: d, name: d }));
+  links.push(...genLinks([{ip:domain,name:'原生'}], uuid, domain));
+  const doms = CFG.directDomains.map(d => ({ip:d, name:d}));
   links.push(...genLinks(doms, uuid, domain));
-
-  // GitHub preferred
   const ips = await fetchGitHubIPs();
   if (ips.length > 0) links.push(...genLinks(ips, uuid, domain));
-
   if (links.length === 0) {
     links.push(`vless://00000000-0000-0000-0000-000000000000@127.0.0.1:80?encryption=none&security=none&type=ws&host=error.com&path=%2F#error`);
   }
-
-  const b64 = btoa(links.join('\n'));
-  return new Response(b64, {
+  return new Response(btoa(links.join('\n')), {
     headers: { 'Content-Type': 'text/plain', 'Cache-Control': 'no-store' }
   });
 }
 
 /* ─── Helpers ─────────────────────────────────────────────────────── */
-function _close(s) {
-  try { if (s.readyState === 1 || s.readyState === 2) s.close(); } catch {}
-}
-
-function _b64Arr(s) {
-  if (!s) return { data: null };
-  try {
-    s = s.replace(/-/g, '+').replace(/_/g, '/');
-    return { data: Uint8Array.from(atob(s), c => c.charCodeAt(0)).buffer };
-  } catch (e) { return { error: e }; }
-}
-
-const _hex = Array.from({ length: 256 }, (_, i) => (i + 256).toString(16).slice(1));
-function _fmtId(arr, off = 0) {
-  const id = (
-    _hex[arr[off]] + _hex[arr[off+1]] + _hex[arr[off+2]] + _hex[arr[off+3]] + '-' +
-    _hex[arr[off+4]] + _hex[arr[off+5]] + '-' +
-    _hex[arr[off+6]] + _hex[arr[off+7]] + '-' +
-    _hex[arr[off+8]] + _hex[arr[off+9]] + '-' +
-    _hex[arr[off+10]] + _hex[arr[off+11]] + _hex[arr[off+12]] + _hex[arr[off+13]] +
-    _hex[arr[off+14]] + _hex[arr[off+15]]
-  ).toLowerCase();
+function _cl(s) { try { if(s.readyState===1||s.readyState===2) s.close(); } catch{} }
+function _bA(s) { if(!s) return {d:null}; try { s=s.replace(/-/g,'+').replace(/_/g,'/'); return {d:Uint8Array.from(atob(s),c=>c.charCodeAt(0)).buffer}; } catch(e) { return{err:e}; } }
+const _h = Array.from({length:256},(_,i)=>(i+256).toString(16).slice(1));
+function _fmtId(a, o=0) {
+  const id=(_h[a[o]]+_h[a[o+1]]+_h[a[o+2]]+_h[a[o+3]]+'-'+_h[a[o+4]]+_h[a[o+5]]+'-'+_h[a[o+6]]+_h[a[o+7]]+'-'+_h[a[o+8]]+_h[a[o+9]]+'-'+_h[a[o+10]]+_h[a[o+11]]+_h[a[o+12]]+_h[a[o+13]]+_h[a[o+14]]+_h[a[o+15]]).toLowerCase();
   if (!isValidUUID(id)) throw new TypeError(atob('U3RyaW5naWZpZWQgaWRlbnRpZmllciBpcyBpbnZhbGlk'));
   return id;
 }
+function isValidUUID(s) { return /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(s); }
+function _parseA(i) { if(!i) return{addr:'',port:null}; const ci=i.lastIndexOf(':'); if(ci>0){const a=i.slice(0,ci),p=parseInt(i.slice(ci+1)); if(!isNaN(p)&&p>0&&p<=65535) return{addr:a,port:p};} return{addr:i,port:null}; }
+function _e(s) { return encodeURIComponent(s); }
 
 /* ─── Router ───────────────────────────────────────────────────────── */
 export default {
   async fetch(request, env, ctx) {
     ctx.passThroughOnException();
-    try {
-      const url = new URL(request.url);
-      const region = regionForRequest(request);
-      const fallbackAddr = await _bestIP(region);
-
-      /* ✦ Public site endpoints ✦ */
-      if (url.pathname === '/' || url.pathname === '/index.html') {
-        return landingPage(request);
-      }
-      if (url.pathname === '/health' || url.pathname === '/api/status') {
-        const s = JSON.stringify({ ok: true, timestamp: new Date().toISOString(), region });
-        return new Response(s, { headers: { 'Content-Type': 'application/json' } });
-      }
-      if (url.pathname === '/robots.txt') {
-        return new Response('User-agent: *\nDisallow: /admin\n', { headers: { 'Content-Type': 'text/plain' } });
-      }
-      if (url.pathname === '/favicon.ico') {
-        return new Response('', { status: 204 });
-      }
-
-      /* ✦ Upgrade: WebSocket proxy ✦ */
-      if (request.headers.get('Upgrade')?.toLowerCase() === 'websocket') {
-        return onWebSocketUpgrade(request, fallbackAddr);
-      }
-
-      /* ✦ Subscription endpoints ✦ */
-      if (request.method === 'GET') {
-        if (url.pathname.length > 1 && url.pathname !== '/') {
-          const raw = url.pathname.replace(/\/$/, '').split('/').filter(Boolean);
-          const first = raw[0];
-          const isSub = raw[1] === 'sub';
-
-          if (isValidUUID(first)) {
-            if (first !== AUTH) return new Response('Forbidden', { status: 403 });
-            if (isSub) return subContent(first, url);
-            return subPage();
-          }
-        }
-      }
-
-      return new Response('Not Found', { status: 404 });
-    } catch (err) {
-      return new Response(err.toString(), { status: 500 });
+    const url = new URL(request.url);
+    const region = regionForRequest(request);
+    /* ✦ Public site endpoints ✦ */
+    if (url.pathname === '/' || url.pathname === '/index.html') return landingPage(request);
+    if (url.pathname === '/health' || url.pathname === '/api/status') {
+      return new Response(JSON.stringify({ok:true,ts:new Date().toISOString(),region}),
+        {headers:{'Content-Type':'application/json'}});
     }
+    if (url.pathname === '/robots.txt') return new Response('User-agent: *\nDisallow: /admin\n',
+      {headers:{'Content-Type':'text/plain'}});
+    if (request.headers.get('Upgrade')?.toLowerCase() === 'websocket') {
+      const fb = await _bestIP(region);
+      return onWebSocketUpgrade(request, fb);
+    }
+    /* ✦ Subscription ✦ */
+    if (request.method === 'GET' && url.pathname.length > 1 && url.pathname !== '/') {
+      const segs = url.pathname.replace(/\/$/,'').split('/').filter(Boolean);
+      if (segs[0] && isValidUUID(segs[0])) {
+        if (segs[0] !== AUTH) return new Response('Forbidden', {status:403});
+        if (segs[1] === 'sub') return subContent(segs[0], url);
+        return subPage();
+      }
+    }
+    return new Response('Not Found', {status:404});
   }
 };
+function regionForRequest(request) {
+  try { const c = request.cf?.country; return CFG.regionMap[c] || 'HK'; }
+  catch { return 'HK'; }
+}
